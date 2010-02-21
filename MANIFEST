@@ -1,0 +1,16 @@
+Changes
+MANIFEST
+Makefile.PL
+README
+lib/XML/TreePuller.pm
+t/00-load.t
+t/05-methods.t
+t/10-simple.t
+t/50-path.t
+t/50-short.t
+t/data/01-emptyelement.xml
+t/data/01-emptyelement2.xml
+t/data/02-singleelement.xml
+t/data/10-smallelement.xml
+t/data/50-wikiexample.xml
+META.yml                                 Module meta-data (added by MakeMaker)
