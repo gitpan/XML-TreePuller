@@ -1,5 +1,9 @@
 Revision history for XML-TreePuller
 
-0.01    Date/time
-        First version, released on an unsuspecting world.
+0.0.2	Apr 04, 2010
+		* Twiddled carp a bit to do better error reporting when constructing
+		  XML::LibXML::Reader fails
+
+0.0.1   Feb 21, 2010
+        * First version, released on an unsuspecting world.
 

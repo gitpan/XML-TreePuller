@@ -4,7 +4,7 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile(
     NAME                => 'XML::TreePuller',
-    AUTHOR              => q{"Tyler Riddle" <"triddle@gmail.com">},
+    AUTHOR              => q{Tyler Riddle <triddle@gmail.com>},
     VERSION_FROM        => 'lib/XML/TreePuller.pm',
     ABSTRACT_FROM       => 'lib/XML/TreePuller.pm',
     ($ExtUtils::MakeMaker::VERSION >= 6.3002

@@ -1,10 +1,11 @@
 package XML::TreePuller;
 
-our $VERSION = '0.0.1';
+our $VERSION = '0.0.2_01';
 
 use strict;
 use warnings;
 use Data::Dumper;
+use Carp qw(croak);
 
 use XML::LibXML::Reader; 
 
@@ -25,15 +26,17 @@ sub new {
 	
 	bless($self, $class);
 	
-	$reader = $self->{reader} = XML::LibXML::Reader->new(@args);
 	$self->{elements} = [];
 	$self->{config} = {};
 	$self->{finished} = 0;
-	
-	die "could not construct libxml reader" unless defined $reader;
+
+	$Carp::CarpLevel++;
+	$reader = $self->{reader} = XML::LibXML::Reader->new(@args);
+	$Carp::CarpLevel--;
+		
+	croak("could not construct libxml reader") unless defined $reader;
 		
 	return $self;
-	
 }
 
 sub config {
@@ -518,7 +521,8 @@ called in array context returns a list of all elements that matched.
   	$xml->config('/wiki/siteinfo/namespaces/namespace' => 'short');
   	
   	while(defined(my $element = $xml->next)) {
-  		print $element->attribute('key'), ": ", $element->text, "\n";
+  		print $element->attribute('key'), ": ", $element->text, 
+  			"\n";
   	}
   	
   	print "End of namespace names\n";
@@ -532,7 +536,8 @@ called in array context returns a list of all elements that matched.
   	$xml->config('/wiki/page' => 'subtree');
   
   	while(defined(my $element = $xml->next)) {
-  		print "Title: ", $element->get_elements('title')->text, "\n";
+  		print "Title: ", $element->get_elements('title')->text, 
+  			"\n";
   	}	
   	
   	print "End of titles\n";
