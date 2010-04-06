@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               XML-TreePuller
-version:            0.0.2_01
+version:            0.0.2
 abstract:           pull interface to a tree based XML processing system
 author:
     - Tyler Riddle <triddle@gmail.com>
