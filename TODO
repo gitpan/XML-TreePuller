@@ -1,1 +1,2 @@
   * Add an 'attributes' instruction that reads only the next element and it's attributes
+  * Add XPATH support to the elements and support a subset of XPATH on the config() method

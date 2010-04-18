@@ -1,5 +1,9 @@
 Revision history for XML-TreePuller
 
+0.0.3	April 17, 2010
+		* Added output of example program to documentation
+		* Commented code more
+
 0.0.2	Apr 04, 2010
 		* Twiddled carp a bit to do better error reporting when constructing
 		  XML::LibXML::Reader fails

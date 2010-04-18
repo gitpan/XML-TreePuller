@@ -1,6 +1,6 @@
 package XML::TreePuller;
 
-our $VERSION = '0.0.2';
+our $VERSION = '0.0.3_01';
 
 use strict;
 use warnings;
@@ -33,7 +33,8 @@ sub new {
 	$Carp::CarpLevel++;
 	$reader = $self->{reader} = XML::LibXML::Reader->new(@args);
 	$Carp::CarpLevel--;
-		
+	
+	#arg how do you get error messages out of libxml reader?	
 	croak("could not construct libxml reader") unless defined $reader;
 		
 	return $self;
@@ -56,24 +57,26 @@ sub next {
 
 	if ($reader->nodeType != XML_READER_TYPE_ELEMENT) {
 		if (! $self->_find_next_element) {
+			#no more elements available in the document
 			return ();
 		}
 	}
 
+	#the reader came in already sitting on an element so we have to 
+	#iterate at the end of the loop
 	do {
 		my $path;
 		my $todo;
 		my $ret;
 		
 		if(! $self->_sync) {
+			#ran out of data in the document
 			return ();	
 		}
 		
 		push(@$elements, $reader->name);
 		
 		$path = '/' . join('/', @$elements);	
-		
-		#print $path, "\n";
 		
 		if (defined($todo = $config->{$path})) {
 			if ($todo eq 'short') {
@@ -102,6 +105,9 @@ sub reader {
 
 #private methods
 
+#this method takes the reader being set at
+#an arbitrary point in the document and
+#places it at the next element start
 sub _sync {
 	my ($self) = @_;
 	my $reader = $self->{reader};
@@ -123,6 +129,8 @@ sub _sync {
 		}
 	}
 
+	#handle the case where the reader is at a lower
+	#depth than we have tracked to
 	splice(@$elements, $reader->depth);
 	
 	return 1;
@@ -311,6 +319,7 @@ sub _extract_elements {
 	return grep { $_->[0] == XML_READER_TYPE_ELEMENT } @_;	
 }
 
+#an easier to understand algorithm would be nice
 sub _recursive_get_child_elements {
 	my ($tree, @path) = @_;
 	my $child_nodes = $tree->[4];
@@ -341,7 +350,7 @@ __END__
 
 =head1 NAME
 
-XML::TreePuller - pull interface to a tree based XML processing system
+XML::TreePuller - pull interface to work with XML document fragments
 
 =head1 SYNOPSIS
 
@@ -562,3 +571,24 @@ called in array context returns a list of all elements that matched.
   subtree_example(); print "\n";
   path_example(); print "\n";
     
+  __END__
+  
+  Output:
+  
+  Printing namespace names using configuration style:
+  -1: Special
+  0: 
+  1: Talk
+  End of namespace names
+
+  Printing titles using a subtree:
+  Title: A good article
+  Title: A bad article
+  End of titles
+
+  Printing path example:
+  Path: /wiki/siteinfo
+  Path: /wiki/page/title
+  Path: /wiki/page/title
+  End path example
+  
