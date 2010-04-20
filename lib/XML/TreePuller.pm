@@ -1,6 +1,6 @@
 package XML::TreePuller;
 
-our $VERSION = '0.0.3_01';
+our $VERSION = '0.0.3';
 
 use strict;
 use warnings;
