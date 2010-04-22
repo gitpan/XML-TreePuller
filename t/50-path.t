@@ -9,9 +9,9 @@ use XML::TreePuller;
 
 my $xml = XML::TreePuller->new(location => 't/data/50-wikiexample.xml');
 
-$xml->config('/wiki', 'short');
-$xml->config('/wiki/siteinfo', 'subtree');
-$xml->config('/wiki/page/title', 'short');
+$xml->iterate_at('/wiki', 'short');
+$xml->iterate_at('/wiki/siteinfo', 'subtree');
+$xml->iterate_at('/wiki/page/title', 'short');
 
 my @results;
 

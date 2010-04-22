@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-use Test::More tests => 25;
+use Test::More tests => 26;
 
 use strict;
 use warnings;
@@ -17,7 +17,7 @@ ok(defined($element));
 ok(ref($element) eq 'XML::TreePuller::Element');
 
 ok($element->name eq 'element');
-ok($element->text eq '');
+ok($element->text eq 'barbiddlemore biddle');
 
 ok(ref($element->attribute) eq 'HASH');
 ok($element->attribute->{one} eq '1');
@@ -32,6 +32,7 @@ foreach (@results) {
 }
 ok($results[0]->text eq 'biddle');
 ok($results[1]->text eq 'more biddle');
+ok($element->get_elements() != $element);
 
 $element = $element->get_elements('baz');
 ok(defined($element));
@@ -56,7 +57,7 @@ sub new_puller {
 	my $puller = XML::TreePuller->new(location => 't/data/10-smallelement.xml');
 	ok(defined($puller));
 	
-	$puller->config('/element' => 'subtree');
+	$puller->iterate_at('/element' => 'subtree');
 		
 	return $puller;
 }

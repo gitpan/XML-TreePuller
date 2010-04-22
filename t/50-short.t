@@ -9,7 +9,7 @@ use XML::TreePuller;
 
 my $xml = XML::TreePuller->new(location => 't/data/50-wikiexample.xml');
 my @results;
-$xml->config('/wiki/siteinfo/namespaces/namespace' => 'short');
+$xml->iterate_at('/wiki/siteinfo/namespaces/namespace' => 'short');
 
 while(defined(my $element = $xml->next)) {
 	ok(ref($element) eq 'XML::TreePuller::Element');

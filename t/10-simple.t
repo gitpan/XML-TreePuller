@@ -10,7 +10,7 @@ use XML::TreePuller;
 my $puller = XML::TreePuller->new(location => 't/data/10-smallelement.xml');
 ok(defined($puller));
 
-$puller->config('/element' => 'subtree');
+$puller->iterate_at('/element' => 'subtree');
 
 my $element = $puller->next;
 ok(defined($element) && ref($element) eq 'XML::TreePuller::Element');

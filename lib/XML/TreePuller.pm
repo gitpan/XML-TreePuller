@@ -1,13 +1,13 @@
 package XML::TreePuller;
 
-our $VERSION = '0.0.3';
+our $VERSION = '0.0.4_02';
 
 use strict;
 use warnings;
 use Data::Dumper;
 use Carp qw(croak);
 
-use XML::LibXML::Reader; 
+use XML::LibXML::Reader;
 
 our $NO_XS;
 
@@ -40,7 +40,7 @@ sub new {
 	return $self;
 }
 
-sub config {
+sub iterate_at {
 	my ($self, $path, $todo) = @_;
 	
 	$self->{config}->{$path} = $todo;
@@ -61,7 +61,7 @@ sub next {
 			return ();
 		}
 	}
-
+	
 	#the reader came in already sitting on an element so we have to 
 	#iterate at the end of the loop
 	do {
@@ -78,6 +78,17 @@ sub next {
 		
 		$path = '/' . join('/', @$elements);	
 		
+		#handle the default case where no config is specified
+		if (scalar(keys(%$config)) == 0) {
+			$self->{finished} = 1;	
+			
+			if (wantarray()) {
+				return($path, $self->_read_subtree);
+			}
+			
+			return $self->_read_subtree;
+		}
+				
 		if (defined($todo = $config->{$path})) {
 			if ($todo eq 'short') {
 				$ret = $self->_read_element;
@@ -251,6 +262,7 @@ use Carp qw(croak);
 use XML::LibXML::Reader;
 
 use Data::Dumper;
+use Scalar::Util qw(weaken);
 
 sub new {
 	my ($class, $tree) = @_;
@@ -260,6 +272,8 @@ sub new {
 	}
 	
 	bless($tree, $class);
+
+	$tree->_init($tree);
 	
 	return $tree;
 }
@@ -268,10 +282,12 @@ sub get_elements {
 	my ($self, $path) = @_;
 	my @results;
 
-	$path = '' unless defined $path;
+	if (! defined($path)) {
+		@results = _extract_elements(@{$self->[4]});
+	} else {
+		@results = $self->_recursive_get_child_elements(split('/', $path));		
+	}
 
-	@results = $self->_recursive_get_child_elements(split('/', $path));
-	
 	if (wantarray()) {
 		return @results;
 	}
@@ -286,19 +302,18 @@ sub name {
 }
 
 sub text {
-	my ($tree) = @_;
-	my $p = $tree->[4]; 
-	my @text;
-		
-	return '' unless defined $p;
-
-	for(my $i = 0; $i < scalar(@$p); $i++) {
-		if ($p->[$i]->[0] == XML_READER_TYPE_TEXT || $p->[$i]->[0] == XML_READER_TYPE_CDATA) {
-			push(@text, $p->[$i]->[1]);
-		}
-	}	
+	my ($self) = @_;
+	my @content;
 	
-	return join('', @text);
+	foreach (@{$self->[4]}) {
+		if ($_->[0] == XML_READER_TYPE_TEXT || $_->[0] == XML_READER_TYPE_CDATA) {
+			push(@content, $_->[1]);
+		} elsif ($_->[0] == XML_READER_TYPE_ELEMENT) {
+			push(@content, $_->text);
+		}
+	}
+	
+	return join('', @content);
 }
 
 sub attribute {
@@ -327,7 +342,7 @@ sub _recursive_get_child_elements {
 	my $target;
 	
 	if (! scalar(@path)) {
-		return XML::TreePuller::Element->new($tree);
+		return $tree;
 	}
 	
 	$target = shift(@path);
@@ -343,6 +358,38 @@ sub _recursive_get_child_elements {
 	return @results;
 }
 
+sub _init {
+	my ($self, $root) = @_;
+	
+	foreach ($self->get_elements) {
+		#set the parent and root of each element
+		$_->[5] = $self;
+		$_->[6] = $root;
+		
+		weaken($_->[5]);
+		weaken($_->[6]);
+		
+		bless($_, 'XML::TreePuller::Element');
+		
+		$_->_init($root);
+	}	
+}
+
+sub _get_parent {
+	return $_[0]->[5];
+}
+
+sub _get_root {
+	return $_[0]->[6];
+}
+
+sub _get_children {
+	return (@{$_[0]->[4]});
+}
+
+sub _get_attr_names {
+	return(keys(%{$_[0]->[3]}));
+}
 
 1;
 
@@ -361,19 +408,20 @@ XML::TreePuller - pull interface to work with XML document fragments
   $pull = XML::TreePuller->new(IO => \*FH);
   $pull = XML::TreePuller->new(string => '<xml/>');
 
-  $pull->reader;
+  $pull->reader; #return the XML::LibXML::Reader object
 
-  $pull->config('/xml', 'short');
-  $pull->config('/xml', 'subtree');
+  $pull->iterate_at('/xml', 'short'); #read the first part of an element
+  $pull->iterate_at('/xml', 'subtree'); #read the element and subtree
   
   while(defined($element = $pull->next)) { }
   
   $element->name;
-  $element->text;
-  $element->attribute('attribute_name');
-  $element->get_elements('element/path');
+  $element->text; #recursively fetch text for the element and all children
+  $element->attribute('attribute_name'); #get attribute value by name
+  $element->attribute; #returns hashref of attributes
+  $element->get_elements('element/path'); #return child elements that match the path
+  $element->get_elements; #return all child elements 
   
-    
 
 =head1 ABOUT
 
@@ -381,6 +429,13 @@ This module implements a tree oriented XML pull processor using a combination of
 XML::LibXML::Reader and an object-oriented interface around the output of XML::CompactTree. 
 It provides a fast and convenient way to access the content of extremely large XML documents
 serially. 
+
+=head1 STATUS
+
+This software is currently ALPHA quality - the only known use is
+MediaWiki::DumpFile which is itself becoming tested in production. The
+API is not stable and there may be bugs: please report success and
+failure to the author below. 
 
 =head1 XML::TreePuller
 
@@ -400,29 +455,33 @@ a full specification of what you can use but for quick reference:
 
 =item new(location => 'http://urls.work.too/data.xml');
 
-=item new(string => $xml_data);
+=item new(string => $xml_data);mmm 
 
 =item new(IO => \*FH);
 
 =back
 
-=item config
+=item iterate_at
 
-This method allows you to control the configuration of the processing engine. You specify
-a path to an XML element and an instruction: short or subtree. The combination of the 
-current path of the XML document in the reader and the instruction to use will generate
-instances of XML::TreePuller::Element available from the "next" method.
+This method allows you to control the configuration of the processing engine; you specify
+two arguments: a path to an XML element and an instruction. The engine will move along
+node by node through the document and keep track of the full path to the current element. 
+The combination of the current path of the XML document in the reader and the instruction
+to use will cause instances of XML::TreePuller::Element to be available from the "next" method.
+
+If iterate_at() is never called then the entire document will be read into a single element
+at the first invocation of next().
 
 =over 4
 
-=item config('/path/to/element' => 'short');
+=item iterate_at('/path/to/element' => 'short');
 
 When the path of the current XML element matches the path specified the 
 "next" method will return an instance of XML::TreePuller::Element that
 holds any attributes and will contain textual data up to the start
 of another element; there will be no child elements in this element. 
 
-=item config('/ditto' => 'subtree');
+=item iterate_at('/ditto' => 'subtree');
 
 When the path of the current XML element matches the path specified the
 "next" method will return an instance of XML::TreePuller::Element that 
@@ -444,13 +503,20 @@ there is no more data to be processed.
 =item reader
 
 Returns the instance of XML::LibXML::Reader that we are using to parse the
-XML document. You can move the cursor of the reader if you want.
+XML document. You can move the cursor of the reader if you want but keep this in mind:
+if you move the cursor of the reader to an element in the document that is at a higher
+level than the reader was sitting at when you moved it then the reader must move the
+cursor to an element that was at the same depth in the document as it was at the start;
+this may cause some parts of the document to be thrown out that you are not expecting. 
 
 =back
 
 =head1 XML::TreePuller::Element
 
-This class is how you access the data from XML::TreePuller. 
+This class is how you access the data from XML::TreePuller. XML::TreePuller::Element is 
+implemented as a set of methods that operate on arrays as returned by XML::CompactTree; 
+you are free to work with XML::TreePuller::Element objects just as you would work with
+data returned from XML::CompactTree::readSubtreeToPerl() and such. 
 
 =head2 METHODS
 
@@ -462,8 +528,8 @@ Returns the name of the element as a string
 
 =item text
 
-Returns the text stored in the element as a string; returns an empty string if 
-there is no text
+Returns the text stored in the element and all subelements as a string; 
+returns an empty string if there is no text
 
 =item attribute
 
@@ -476,7 +542,8 @@ if there is no attribute by that name.
 
 Searches this element for any child elements as matched by the path supplied as
 an argument. The path is of the format 'node1/node2/node3' where each node name
-is seperated by a forward slash and there is no trailing or leading forwardslashes.
+is seperated by a forward slash and there is no trailing or leading forwardslashes. 
+If no path is specified it returns all of the child nodes.
 
 If called in scalar context returns the first element that matches the path; if 
 called in array context returns a list of all elements that matched.
@@ -527,7 +594,7 @@ called in array context returns a list of all elements that matched.
   	
   	print "Printing namespace names using configuration style:\n";
   	
-  	$xml->config('/wiki/siteinfo/namespaces/namespace' => 'short');
+  	$xml->iterate_at('/wiki/siteinfo/namespaces/namespace' => 'short');
   	
   	while(defined(my $element = $xml->next)) {
   		print $element->attribute('key'), ": ", $element->text, 
@@ -542,7 +609,7 @@ called in array context returns a list of all elements that matched.
   	
   	print "Printing titles using a subtree:\n";
   	
-  	$xml->config('/wiki/page' => 'subtree');
+  	$xml->iterate_at('/wiki/page' => 'subtree');
   
   	while(defined(my $element = $xml->next)) {
   		print "Title: ", $element->get_elements('title')->text, 
@@ -557,8 +624,8 @@ called in array context returns a list of all elements that matched.
   	
   	print "Printing path example:\n";
   	
-  	$xml->config('/wiki/siteinfo', 'subtree');
-  	$xml->config('/wiki/page/title', 'short');
+  	$xml->iterate_at('/wiki/siteinfo', 'subtree');
+  	$xml->iterate_at('/wiki/page/title', 'short');
   	
   	while(my ($matched_path, $element) = $xml->next) {
   		print "Path: $matched_path\n";
@@ -592,3 +659,6 @@ called in array context returns a list of all elements that matched.
   Path: /wiki/page/title
   End path example
   
+=head1 AUTHOR
+
+Tyler Riddle, C<< <triddle at gmail.com> >>
