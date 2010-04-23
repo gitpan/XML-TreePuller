@@ -1,3 +1,4 @@
+  * Add in a recipes part of the documentation showing how to do common tasks
   * Add an 'attributes' instruction that reads only the next element and it's attributes
   * Add XPATH support to the elements and support a subset of XPATH on the config() method
   * Improve speed of the module through XS

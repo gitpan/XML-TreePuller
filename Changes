@@ -1,5 +1,9 @@
 Revision history for XML-TreePuller
 
+0.1.0	April 22, 2010
+		* API change: config() becomes iterate_at()
+		* Improved documentation 
+
 0.0.3	April 17, 2010
 		* Added output of example program to documentation
 		* Commented code more

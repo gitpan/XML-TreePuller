@@ -1,11 +1,11 @@
 package XML::TreePuller;
 
-our $VERSION = '0.0.4_02';
+our $VERSION = '0.1.0_01';
 
 use strict;
 use warnings;
 use Data::Dumper;
-use Carp qw(croak);
+use Carp qw(croak carp);
 
 use XML::LibXML::Reader;
 
@@ -44,6 +44,15 @@ sub iterate_at {
 	my ($self, $path, $todo) = @_;
 	
 	$self->{config}->{$path} = $todo;
+	
+	return undef;
+}
+
+sub config {
+	#turn this warning on later
+	#carp "config() is depreciated, use iterate_at() instead";
+	
+	return iterate_at(@_);
 }
 
 sub next {
@@ -116,16 +125,15 @@ sub reader {
 
 #private methods
 
-#this method takes the reader being set at
-#an arbitrary point in the document and
-#places it at the next element start
+#get the reader to a point where it is in sync with
+#our internal element list
 sub _sync {
 	my ($self) = @_;
 	my $reader = $self->{reader};
 	my $depth = $self->{reader}->depth;
 	my $elements = $self->{elements}; 
 
-	#if we wind up at a lower level than we have
+	#if we are at a higher level than we have
 	#tracked to we need to get back to the same
 	#depth as our element list to properly process
 	#data again
@@ -455,7 +463,7 @@ a full specification of what you can use but for quick reference:
 
 =item new(location => 'http://urls.work.too/data.xml');
 
-=item new(string => $xml_data);mmm 
+=item new(string => $xml_data);
 
 =item new(IO => \*FH);
 
@@ -547,6 +555,25 @@ If no path is specified it returns all of the child nodes.
 
 If called in scalar context returns the first element that matches the path; if 
 called in array context returns a list of all elements that matched.
+
+=back
+
+=head1 LIMITATIONS
+
+=over 4
+
+=item
+
+There is only support for elements, text in elements, and CDATA blocks - other features
+of XML are not part of the API and are not tested but may bleed through from the underlying
+modules used to build this system. If you have an idea on how to add support for these
+extra features the author is soliciting feedback and patches. 
+
+=item 
+
+Things are pretty arbitrary right now as this module started life as the heart of 
+MediaWiki::DumpFile; it would be nice to bring in more formal XML processing 
+concepts.
 
 =back
 
