@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               XML-TreePuller
-version:            0.1.0_01
+version:            0.1.0
 abstract:           pull interface to work with XML document fragments
 author:
     - Tyler Riddle <triddle@gmail.com>
