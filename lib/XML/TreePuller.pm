@@ -1,6 +1,6 @@
 package XML::TreePuller;
 
-our $VERSION = '0.1.0';
+our $VERSION = '0.1.1';
 
 use strict;
 use warnings;
@@ -8,6 +8,8 @@ use Data::Dumper;
 use Carp qw(croak carp);
 
 use XML::LibXML::Reader;
+
+use XML::TreePuller::Element;
 
 our $NO_XS;
 
@@ -40,8 +42,16 @@ sub new {
 	return $self;
 }
 
+sub parse {
+	my ($class, @args) = @_;
+	
+	return $class->new(@args)->next;
+}
+
 sub iterate_at {
 	my ($self, $path, $todo) = @_;
+	
+	croak("must specify match and instruction") unless defined $path && defined $todo;
 	
 	$self->{config}->{$path} = $todo;
 	
@@ -247,8 +257,6 @@ sub _read_element {
 	}
 	
 	return XML::TreePuller::Element->new($new);
-		
-	
 }
 
 sub _read_tree {
@@ -259,144 +267,6 @@ sub _read_tree {
 	}
 	
 	return XML::CompactTree::XS::readSubtreeToPerl($r, 0);
-}
-
-package XML::TreePuller::Element;
-
-use strict;
-use warnings;
-use Carp qw(croak);
-
-use XML::LibXML::Reader;
-
-use Data::Dumper;
-use Scalar::Util qw(weaken);
-
-sub new {
-	my ($class, $tree) = @_;
-	
-	if ($tree->[0] != XML_READER_TYPE_ELEMENT) {
-		croak("must specify an element node");
-	}
-	
-	bless($tree, $class);
-
-	$tree->_init($tree);
-	
-	return $tree;
-}
-
-sub get_elements {
-	my ($self, $path) = @_;
-	my @results;
-
-	if (! defined($path)) {
-		@results = _extract_elements(@{$self->[4]});
-	} else {
-		@results = $self->_recursive_get_child_elements(split('/', $path));		
-	}
-
-	if (wantarray()) {
-		return @results;
-	}
-	
-	return shift(@results);
-}
-
-sub name {
-	my ($tree) = @_;
-	
-	return $tree->[1];
-}
-
-sub text {
-	my ($self) = @_;
-	my @content;
-	
-	foreach (@{$self->[4]}) {
-		if ($_->[0] == XML_READER_TYPE_TEXT || $_->[0] == XML_READER_TYPE_CDATA) {
-			push(@content, $_->[1]);
-		} elsif ($_->[0] == XML_READER_TYPE_ELEMENT) {
-			push(@content, $_->text);
-		}
-	}
-	
-	return join('', @content);
-}
-
-sub attribute {
-	my ($tree, $name) = @_;
-	my $attr = $tree->[3];
-	
-	$attr = {} unless defined $attr;
-
-	if (! defined($name)) {
-		return $attr;
-	}
-	
-	return $attr->{$name};
-}
-
-#private methods
-sub _extract_elements {
-	return grep { $_->[0] == XML_READER_TYPE_ELEMENT } @_;	
-}
-
-#an easier to understand algorithm would be nice
-sub _recursive_get_child_elements {
-	my ($tree, @path) = @_;
-	my $child_nodes = $tree->[4];
-	my @results;
-	my $target;
-	
-	if (! scalar(@path)) {
-		return $tree;
-	}
-	
-	$target = shift(@path);
-	
-	return () unless defined $child_nodes;
-	
-	foreach (_extract_elements(@$child_nodes)) {
-		next unless $_->[1] eq $target;
-		
-		push(@results, _recursive_get_child_elements($_, @path));
-	}
-	
-	return @results;
-}
-
-sub _init {
-	my ($self, $root) = @_;
-	
-	foreach ($self->get_elements) {
-		#set the parent and root of each element
-		$_->[5] = $self;
-		$_->[6] = $root;
-		
-		weaken($_->[5]);
-		weaken($_->[6]);
-		
-		bless($_, 'XML::TreePuller::Element');
-		
-		$_->_init($root);
-	}	
-}
-
-sub _get_parent {
-	return $_[0]->[5];
-}
-
-sub _get_root {
-	return $_[0]->[6];
-}
-
-sub _get_children {
-	return (@{$_[0]->[4]});
-}
-
-sub _get_attr_names {
-	return(keys(%{$_[0]->[3]}));
 }
 
 1;
@@ -412,31 +282,37 @@ XML::TreePuller - pull interface to work with XML document fragments
   use XML::TreePuller;
   
   $pull = XML::TreePuller->new(location => '/what/ever/filename.xml');
-  $pull = XML::TreePuller->new(location => 'http://urls.work.too/data.xml');
+  $pull = XML::TreePuller->new(location => 'http://urls.too/data.xml');
   $pull = XML::TreePuller->new(IO => \*FH);
   $pull = XML::TreePuller->new(string => '<xml/>');
+
+  #parse the document and return the root element
+  #takes same arguments as new()
+  $element = XML::TreePuller->parse(%ARGS); 
 
   $pull->reader; #return the XML::LibXML::Reader object
 
   $pull->iterate_at('/xml', 'short'); #read the first part of an element
   $pull->iterate_at('/xml', 'subtree'); #read the element and subtree
   
-  while(defined($element = $pull->next)) { }
+  while($element = $pull->next) { }
   
   $element->name;
-  $element->text; #recursively fetch text for the element and all children
-  $element->attribute('attribute_name'); #get attribute value by name
+  $element->text; #fetch text for the element and all children
+  $element->attribute('attribute_name'); #get attribute value
   $element->attribute; #returns hashref of attributes
-  $element->get_elements('element/path'); #return child elements that match the path
   $element->get_elements; #return all child elements 
+  $element->get_elements('element/path'); #elements from path
+  $element->xpath('/xml'); #search using a XPath
   
-
 =head1 ABOUT
 
-This module implements a tree oriented XML pull processor using a combination of
-XML::LibXML::Reader and an object-oriented interface around the output of XML::CompactTree. 
-It provides a fast and convenient way to access the content of extremely large XML documents
-serially. 
+This module implements a tree oriented XML pull processor providing fast and 
+convenient access to the content of extremely large XML documents serially. Tree
+oriented means the data is returned from the engine as a tree of data replicating the
+structure of the original XML document. Pull processor means you sequentially ask
+the engine for more data (the opposite of SAX). This engine also supports breaking
+the document into fragments so the trees are small enough to fit into RAM.
 
 =head1 STATUS
 
@@ -468,6 +344,12 @@ a full specification of what you can use but for quick reference:
 =item new(IO => \*FH);
 
 =back
+
+=item parse
+
+This method takes the same arguments as new() but parses the entire document into
+an element and returns it; you can use this if you don't need to break the document
+into chunks. 
 
 =item iterate_at
 
@@ -507,6 +389,9 @@ no more data is available. When called in list context it returns a two item
 list with the first item being the path to the node that was matched and the
 second item being the next available element; returns an empty list when 
 there is no more data to be processed. 
+
+The returned path will always be a full path in the document starting at the
+root element and ending in the element that ultimately matched. 
 
 =item reader
 
@@ -556,11 +441,35 @@ If no path is specified it returns all of the child nodes.
 If called in scalar context returns the first element that matches the path; if 
 called in array context returns a list of all elements that matched.
 
+=item xpath
+
+Perform an XPath query on the element and return the results; if called in list
+context you'll get all of the elements that matched. If called in scalar context
+you'll get the first element that matched. XPath support is currently EXPERIMENTAL. 
+
+=back
+
+=head1 FURTHER READING
+
+=over 4
+
+=item XML::TreePuller::CookBook::Intro
+
+Gentle introduction to parsing using Atom as an example.
+
+=item XML::TreePuller::CookBook::Performance
+
+High performance processing of Wikipedia dump files.
+
 =back
 
 =head1 LIMITATIONS
 
 =over 4
+
+=item
+
+XPath support is EXPERIMENTAL (even more so than the rest of this module)
 
 =item
 
@@ -577,115 +486,28 @@ concepts.
 
 =back
 
-=head1 EXAMPLE
+=head1 ATTRIBUTION
 
-  use strict;
-  use warnings;
-  
-  use XML::TreePuller;
-  
-  sub gen_xml {
-    	return <<EOF
-    	
-  <wiki version="0.3">
-  
-  <!-- schema says that there is always 1 siteinfo and zero or more page 
-    elements follow -->
-  <siteinfo>
-    <sitename>ExamplePedia</sitename>
-    <url>http://example.pedia/</url>
-    <namespaces>
-      <namespace key="-1">Special</namespace>
-      <namespace key="0" />
-      <namespace key="1">Talk</namespace>
-    </namespaces>
-  </siteinfo>
-  
-  <page>
-    <title>A good article</title>
-    <text>Some good content</text>
-  </page>    
-  
-  <page>
-    <title>A bad article</title>
-    <text>Some bad content</text>
-  </page>
-  
-  </wiki>
-    	  	
-  EOF
-  }
-  
-  sub element_example {
-  	my $xml = XML::TreePuller->new(string => gen_xml());
-  	
-  	print "Printing namespace names using configuration style:\n";
-  	
-  	$xml->iterate_at('/wiki/siteinfo/namespaces/namespace' => 'short');
-  	
-  	while(defined(my $element = $xml->next)) {
-  		print $element->attribute('key'), ": ", $element->text, 
-  			"\n";
-  	}
-  	
-  	print "End of namespace names\n";
-  }
-  
-  sub subtree_example {
-  	my $xml = XML::TreePuller->new(string => gen_xml());
-  	
-  	print "Printing titles using a subtree:\n";
-  	
-  	$xml->iterate_at('/wiki/page' => 'subtree');
-  
-  	while(defined(my $element = $xml->next)) {
-  		print "Title: ", $element->get_elements('title')->text, 
-  			"\n";
-  	}	
-  	
-  	print "End of titles\n";
-  }
-  
-  sub path_example {
-  	my $xml = XML::TreePuller->new(string => gen_xml());
-  	
-  	print "Printing path example:\n";
-  	
-  	$xml->iterate_at('/wiki/siteinfo', 'subtree');
-  	$xml->iterate_at('/wiki/page/title', 'short');
-  	
-  	while(my ($matched_path, $element) = $xml->next) {
-  		print "Path: $matched_path\n";
-  	}
-  	
-  	print "End path example\n";
-  }
-  
-  element_example(); print "\n";
-  subtree_example(); print "\n";
-  path_example(); print "\n";
-    
-  __END__
-  
-  Output:
-  
-  Printing namespace names using configuration style:
-  -1: Special
-  0: 
-  1: Talk
-  End of namespace names
+With out the following people this module would not be possible:
 
-  Printing titles using a subtree:
-  Title: A good article
-  Title: A bad article
-  End of titles
+=over 4
 
-  Printing path example:
-  Path: /wiki/siteinfo
-  Path: /wiki/page/title
-  Path: /wiki/page/title
-  End path example
-  
+=item Andrew Rodland
+
+My Perl mentor and friend, his influence has helped me everywhere.
+
+=item Petr Pajas
+
+As the maintainer of XML::LibXML and creator of XML::CompactTree this
+module would not be possible with out building on his great work.
+
+=item Michel Rodriguez
+
+For creating Tree::XPathEngine which made adding XPath support
+a one day exercise. 
+
+=back
+
 =head1 AUTHOR
 
-Tyler Riddle, C<< <triddle at gmail.com> >>
+Tyler Riddle, C<< <triddle at cpan.org> >>

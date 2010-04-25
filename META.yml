@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               XML-TreePuller
-version:            0.1.0
+version:            0.1.1
 abstract:           pull interface to work with XML document fragments
 author:
     - Tyler Riddle <triddle@gmail.com>
@@ -11,10 +11,11 @@ configure_requires:
 build_requires:
     ExtUtils::MakeMaker:  0
 requires:
-    Scalar::Util:      1.23
-    Test::More:        0
-    XML::CompactTree:  0.03
-    XML::LibXML:       1.7
+    Scalar::Util:       1.23
+    Test::More:         0
+    Tree::XPathEngine:  0.05
+    XML::CompactTree:   0.03
+    XML::LibXML:        1.7
 no_index:
     directory:
         - t

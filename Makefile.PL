@@ -15,6 +15,7 @@ WriteMakefile(
         'Test::More' => 0,
         'XML::LibXML' => 1.70,
         'XML::CompactTree' => 0.03,
+        'Tree::XPathEngine' => 0.05,
         'Scalar::Util' => 1.23,
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },

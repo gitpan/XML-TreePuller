@@ -1,6 +1,7 @@
-  * Add in a recipes part of the documentation showing how to do common tasks
+  * Add more recipes to the cook book
+    * XPath tutorial and recipes
   * Add an 'attributes' instruction that reads only the next element and it's attributes
-  * Add XPATH support to the elements and support a subset of XPATH on the config() method
   * Improve speed of the module through XS
   * Validate the configuration prior to starting processing so errors in there don't show up in the
     middle of a long job
+  * Support using a regex to match a path in iterate_at()
