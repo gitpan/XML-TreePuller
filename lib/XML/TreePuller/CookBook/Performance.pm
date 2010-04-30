@@ -61,8 +61,6 @@ XML::TreePuller break the document up into chunks that will fit. We also want to
 access the version attribute on the root node but with out having the entire
 document read into memory.  
 
-=head3 Code
-
   #!/usr/bin/env perl
 
   use strict;
@@ -93,8 +91,6 @@ turned into a shoot-out to gauge the speed of various XML processing systems.
 The shoot-out is to print all the page titles and contents to STDOUT. This
 example processes the XML input of the simple English Wikipedia at 3.45 MiB/sec. 
 
-=head3 Code
-
   use strict;
   use warnings;
 
@@ -121,8 +117,6 @@ it in our code. We can replace the xpath() calls with get_elements()
 which has less features but is faster. This code processes the XML
 input at 6.68 MiB/sec. 
 
-=head3 Code
-
   use strict;
   use warnings;
 
@@ -146,8 +140,6 @@ input at 6.68 MiB/sec.
 There is one more way to solve this particular problem: we can ask
 the engine to iterate on both page title and text elements. This
 example runs at 7.9 MiB/sec.
-
-=head3 Code
 
   use strict;
   use warnings;

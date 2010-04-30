@@ -1,6 +1,6 @@
 package XML::TreePuller;
 
-our $VERSION = '0.1.1';
+our $VERSION = '0.1.2_01';
 
 use strict;
 use warnings;
@@ -10,6 +10,7 @@ use Carp qw(croak carp);
 use XML::LibXML::Reader;
 
 use XML::TreePuller::Element;
+use XML::TreePuller::Constants;
 
 our $NO_XS;
 
@@ -107,7 +108,11 @@ sub next {
 			
 			return $self->_read_subtree;
 		}
-				
+		
+		#if this is converted over a dispatch hash then
+		#the keys in the hash can be used to validate items
+		#as they are passed to next() and allow this
+		#method to scale to more instructions 		
 		if (defined($todo = $config->{$path})) {
 			if ($todo eq 'short') {
 				$ret = $self->_read_element;
@@ -206,11 +211,11 @@ sub _read_element {
 	my $node_type;
 	my $ret;
 	
-	$new->[0] = 1;
-	$new->[1] = $reader->name;
-	$new->[2] = 0;
-	$new->[3] = \%attr;
-	$new->[4] = [];
+	$new->[XML_TREEPULLER_ELEMENT_TYPE] = 1;
+	$new->[XML_TREEPULLER_ELEMENT_NAME] = $reader->name;
+	$new->[XML_TREEPULLER_ELEMENT_NAMESPACE] = 0;
+	$new->[XML_TREEPULLER_ELEMENT_ATTRIBUTES] = \%attr;
+	$new->[XML_TREEPULLER_ELEMENT_CHILDREN] = [];
 	
 	
 	if ($reader->hasAttributes && $reader->moveToFirstAttribute == 1) {
@@ -241,7 +246,7 @@ sub _read_element {
 		$node_type = $reader->nodeType;
 		
 		if ($node_type == XML_READER_TYPE_TEXT || $node_type == XML_READER_TYPE_CDATA) {
-			push(@{$new->[4]}, [ $node_type, $reader->value ]);
+			push(@{$new->[XML_TREEPULLER_ELEMENT_CHILDREN]}, [ $node_type, $reader->value ]);
 		}
 
 		$ret = $reader->read;
@@ -275,7 +280,7 @@ __END__
 
 =head1 NAME
 
-XML::TreePuller - pull interface to work with XML document fragments
+XML::TreePuller - Pull interface to work with XML document fragments
 
 =head1 SYNOPSIS
 
@@ -308,11 +313,52 @@ XML::TreePuller - pull interface to work with XML document fragments
 =head1 ABOUT
 
 This module implements a tree oriented XML pull processor providing fast and 
-convenient access to the content of extremely large XML documents serially. Tree
+convenient unmarshalling of extremely large XML documents serially. Unmarshalling means
+the module is intended to turn the XML document into datastructures, not transform it. Tree
 oriented means the data is returned from the engine as a tree of data replicating the
 structure of the original XML document. Pull processor means you sequentially ask
 the engine for more data (the opposite of SAX). This engine also supports breaking
 the document into fragments so the trees are small enough to fit into RAM.
+
+=head2 Features
+
+=over 4
+
+=item High speed 
+
+This framework has been benchmarked to process XML between 1 meg/sec
+and 70 meg/sec in real world scenarios using the high level interface. 
+
+=item Work with documents too big to fit into RAM
+
+The interface is nearly identical for large documents and small documents.
+
+=item High level
+
+The document is mapped to a high level XML element class that is easy to use.
+
+=item Low level
+
+If you need lower level access to the XML document you can treat the
+element class as a set of arrays representing the structure of your
+document or you can work with the XML::LibXML::Reader instance 
+directly. 
+
+=back
+
+=head2 Justification
+
+"Another XML processing scheme? Why don't you create a new template parsing framework
+to go with it!?" -- If I had a trillion dollars for every time I've heard this I could
+bail out the US Government (as of Apr 26, 2010 that is). When I set out to create the
+replacement for Parse::MediaWikiDump I started by benchmarking the performance of existing
+XML processing frameworks (XML::SAX (all of them), XML::Parser, and higher level frameworks
+such as XML::Twig). The results of my research was that there exists no very fast pull oriented
+high level framework for processing XML.
+
+I set about building MediaWiki::DumpFile using a base of XML::LibXML::Reader and
+XML::CompactTree; I wound up with a reconfigurable XML processing engine that I
+rather liked so I decided to publish it on CPAN. 
 
 =head1 STATUS
 
@@ -434,9 +480,10 @@ if there is no attribute by that name.
 =item get_elements
 
 Searches this element for any child elements as matched by the path supplied as
-an argument. The path is of the format 'node1/node2/node3' where each node name
+an argument; the path is relative to the current element. 
+The path is of the format 'element1/element2/element3' where each element name
 is seperated by a forward slash and there is no trailing or leading forwardslashes. 
-If no path is specified it returns all of the child nodes.
+If no path is specified it returns all of the child elements for the current element.
 
 If called in scalar context returns the first element that matches the path; if 
 called in array context returns a list of all elements that matched.
@@ -447,7 +494,20 @@ Perform an XPath query on the element and return the results; if called in list
 context you'll get all of the elements that matched. If called in scalar context
 you'll get the first element that matched. XPath support is currently EXPERIMENTAL. 
 
+The XPath query is rooted at the element so you must include the current element 
+name as part of the path if you are specifying an absolute path to a subelement. 
+
 =back
+
+=head1 IMPROVING PERFORMANCE
+
+First of all if you want to improve the throughput of this XML processing system
+be sure to install XML::CompactTree::XS - once installed this module is used
+automatically and drastically improves overall performance of unmarshalling the
+XML from the document (this does not involve XML::TreePuller::Element).
+
+Secondly there are a number of ways to solve problems with this module, see
+XML::TreePuller::CookBook::Performance for information. 
 
 =head1 FURTHER READING
 
@@ -461,11 +521,22 @@ Gentle introduction to parsing using Atom as an example.
 
 High performance processing of Wikipedia dump files.
 
+=item MediaWiki::DumpFile::Pages
+
+Object oriented recursive descent parser that maps Mediawiki XML dump files into
+high level Perl objects for working with the data. 
+
 =back
 
 =head1 LIMITATIONS
 
 =over 4
+
+=item
+
+This module is not XML compliant though it is built from XML compliant 
+components. There may be unexpected behavior compared to proper XML
+behavior and if this is encountered please open a bug report.
 
 =item
 

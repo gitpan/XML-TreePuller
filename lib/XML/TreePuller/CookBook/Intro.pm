@@ -60,8 +60,6 @@ of the report is like this:
     
 (that sure does sound like an interesting feed)
 
-=head3 Code
-
   #!/usr/bin/env perl
   
   use strict;
@@ -88,8 +86,6 @@ Given an Atom feed what is the easiest way to build an HTML list of hyperlinks t
 are specified in it? We need to get the title which is stored in a single element and the hyperlink
 to the entry; there are multiple link elements and we only want one - the one with "rel" attribute
 value of "alternate". XPath makes quick work of this.
-
-=head3 Code
 
   #!/usr/bin/env perl
 

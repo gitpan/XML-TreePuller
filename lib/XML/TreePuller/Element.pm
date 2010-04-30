@@ -17,16 +17,18 @@ use Data::Dumper;
 use Scalar::Util qw(weaken);
 use Tree::XPathEngine;
 
+use XML::TreePuller::Constants;
+
 sub new {
 	my ($class, $tree) = @_;
 	
-	if ($tree->[0] != XML_READER_TYPE_ELEMENT) {
+	if ($tree->[XML_TREEPULLER_ELEMENT_TYPE] != XML_READER_TYPE_ELEMENT) {
 		croak("must specify an element node");
 	}
 	
 	bless($tree, $class);
 
-	$tree->[10] = Tree::XPathEngine->new;
+	$tree->[XML_TREEPULLER_ELEMENT_XPATH_ENGINE] = Tree::XPathEngine->new;
 	$tree->_init($tree, 0);
 	
 	return $tree;
@@ -37,7 +39,7 @@ sub get_elements {
 	my @results;
 
 	if (! defined($path)) {
-		@results = _extract_elements(@{$self->[4]});
+		@results = _extract_elements(@{$self->[XML_TREEPULLER_ELEMENT_CHILDREN]});
 	} else {
 		@results = $self->_recursive_get_child_elements(split('/', $path));		
 	}
@@ -50,7 +52,7 @@ sub get_elements {
 }
 
 sub xpath {
-	my @return = $_[0]->[10]->findnodes($_[1], XML::TreePuller::Element::Document->new($_[0]));
+	my @return = $_[0]->[XML_TREEPULLER_ELEMENT_XPATH_ENGINE]->findnodes($_[1], XML::TreePuller::Element::Document->new($_[0]));
 	
 	if (wantarray()) {
 		return @return;
@@ -62,17 +64,17 @@ sub xpath {
 sub name {
 	my ($tree) = @_;
 	
-	return $tree->[1];
+	return $tree->[XML_TREEPULLER_ELEMENT_NAME];
 }
 
 sub text {
 	my ($self) = @_;
 	my @content;
 	
-	foreach (@{$self->[4]}) {
-		if ($_->[0] == XML_READER_TYPE_TEXT || $_->[0] == XML_READER_TYPE_CDATA) {
-			push(@content, $_->[1]);
-		} elsif ($_->[0] == XML_READER_TYPE_ELEMENT) {
+	foreach (@{$self->[XML_TREEPULLER_ELEMENT_CHILDREN]}) {
+		if ($_->[XML_TREEPULLER_ELEMENT_TYPE] == XML_READER_TYPE_TEXT || $_->[0] == XML_READER_TYPE_CDATA) {
+			push(@content, $_->[XML_TREEPULLER_ELEMENT_NAME]);
+		} elsif ($_->[XML_TREEPULLER_ELEMENT_TYPE] == XML_READER_TYPE_ELEMENT) {
 			push(@content, $_->text);
 		}
 	}
@@ -82,7 +84,7 @@ sub text {
 
 sub attribute {
 	my ($tree, $name) = @_;
-	my $attr = $tree->[3];
+	my $attr = $tree->[XML_TREEPULLER_ELEMENT_ATTRIBUTES];
 	
 	$attr = {} unless defined $attr;
 
@@ -95,13 +97,13 @@ sub attribute {
 
 #private methods
 sub _extract_elements {
-	return grep { $_->[0] == XML_READER_TYPE_ELEMENT } @_;	
+	return grep { $_->[XML_TREEPULLER_ELEMENT_TYPE] == XML_READER_TYPE_ELEMENT } @_;	
 }
 
 #an easier to understand algorithm would be nice
 sub _recursive_get_child_elements {
 	my ($tree, @path) = @_;
-	my $child_nodes = $tree->[4];
+	my $child_nodes = $tree->[XML_TREEPULLER_ELEMENT_CHILDREN];
 	my @results;
 	my $target;
 	
@@ -114,7 +116,7 @@ sub _recursive_get_child_elements {
 	return () unless defined $child_nodes;
 	
 	foreach (_extract_elements(@$child_nodes)) {
-		next unless $_->[1] eq $target;
+		next unless $_->[XML_TREEPULLER_ELEMENT_NAME] eq $target;
 		
 		push(@results, _recursive_get_child_elements($_, @path));
 	}
@@ -126,13 +128,13 @@ sub _init {
 	my ($self, $root, $depth) = @_;
 	my @elements = $self->get_elements;
 	
-	$self->[10] = $root->[10];
+	$self->[XML_TREEPULLER_ELEMENT_XPATH_ENGINE] = $root->[XML_TREEPULLER_ELEMENT_XPATH_ENGINE];
 	
-	$self->[5] = undef;
-	$self->[6] = $root;
-	$self->[7] = $depth;
+	$self->[XML_TREEPULLER_ELEMENT_PARENT] = undef;
+	$self->[XML_TREEPULLER_ELEMENT_ROOT] = $root;
+	$self->[XML_TREEPULLER_ELEMENT_DEPTH] = $depth;
 	
-	weaken($self->[6]);
+	weaken($self->[XML_TREEPULLER_ELEMENT_ROOT]);
 	
 	$depth++;
 
@@ -144,22 +146,22 @@ sub _init {
 			$before = undef;
 		}
 		
-		$elements[$i]->[8] = $before;
-		$elements[$i]->[9] = $after;
+		$elements[$i]->[XML_TREEPULLER_ELEMENT_NEXT_SIBLING] = $before;
+		$elements[$i]->[XML_TREEPULLER_ELEMENT_PREV_SIBLING] = $after;
 		
-		weaken($elements[$i]->[8]);
-		weaken($elements[$i]->[9]);
+		weaken($elements[$i]->[XML_TREEPULLER_ELEMENT_NEXT_SIBLING]);
+		weaken($elements[$i]->[XML_TREEPULLER_ELEMENT_PREV_SIBLING]);
 	}	
 	
 	foreach (@elements) {
 		#set the parent and root of each element
-		$_->[5] = $self;
-		$_->[6] = $root;
+		$_->[XML_TREEPULLER_ELEMENT_PARENT] = $self;
+		$_->[XML_TREEPULLER_ELEMENT_ROOT] = $root;
 		
-		$_[7] = $depth;
+		$_[XML_TREEPULLER_ELEMENT_DEPTH] = $depth;
 		
-		weaken($_->[5]);
-		weaken($_->[6]);
+		weaken($_->[XML_TREEPULLER_ELEMENT_PARENT]);
+		weaken($_->[XML_TREEPULLER_ELEMENT_ROOT]);
 		
 		bless($_, 'XML::TreePuller::Element');
 		
@@ -177,7 +179,7 @@ sub xpath_string_value {
 }
 
 sub xpath_get_parent_node {
-	return $_[0]->[6] || XML::TreePuller::Element::Document->new($_[0]);
+	return $_[0]->[XML_TREEPULLER_ELEMENT_ROOT] || XML::TreePuller::Element::Document->new($_[0]);
 }
 
 sub xpath_get_child_nodes {
@@ -205,7 +207,7 @@ sub xpath_to_number {
 }
 
 sub xpath_cmp {
-	return $_[0]->[7] cmp $_[1]->[7];
+	return $_[0]->[XML_TREEPULLER_ELEMENT_DEPTH] cmp $_[1]->[XML_TREEPULLER_ELEMENT_DEPTH];
 }
 
 sub xpath_get_attributes {
@@ -221,31 +223,31 @@ sub xpath_get_attributes {
 }
 
 sub xpath_get_next_sibling  {
-	return $_[0]->[8];	
+	return $_[0]->[XML_TREEPULLER_ELEMENT_NEXT_SIBLING];	
 }
 
 sub xpath_get_prev_sibling {
-	return $_[0]->[9];
+	return $_[0]->[XML_TREEPULLER_ELEMENT_PREV_SIBLING];
 }
 
-sub xpath_get_root_node
-  { my $node= shift;
-    # The parent of root is a Tree::DAG_Node::XPath::Root
-    # that helps getting the tree to mimic a DOM tree
-    return $node->[6]->xpath_get_parent_node; # I like this one!
-  }
-
+sub xpath_get_root_node {
+	my ($node) = @_;
+	
+    return $node->[XML_TREEPULLER_ELEMENT_ROOT]->xpath_get_parent_node; 
+}
 
 package XML::TreePuller::Element::Document;
 
 use strict;
 use warnings;
 
+use XML::TreePuller::Constants;
+
 sub new {
 	my ($class, $root) = @_;
 	my $self = [ $root ];
 	
-	$self->[7] = -1;
+	$self->[XML_TREEPULLER_ELEMENT_DEPTH] = -1;
 	
 	return bless($self, $class);
 }

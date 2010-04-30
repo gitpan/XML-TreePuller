@@ -1,5 +1,9 @@
 Revision history for XML-TreePuller
 
+0.1.2	
+		* Changed over to using constants for array offsets in
+		  ::Element
+
 0.1.1	April 24, 2010
 		* Added in XPath support using Tree::XPathEngine
 		* Improved documentation 

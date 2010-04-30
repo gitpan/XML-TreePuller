@@ -5,6 +5,7 @@ README
 TODO
 lib/XML/TreePuller.pm
 lib/XML/TreePuller/Element.pm
+lib/XML/TreePuller/Constants.pm
 lib/XML/TreePuller/CookBook/Intro.pm
 lib/XML/TreePuller/CookBook/Performance.pm
 t/00-load.t
