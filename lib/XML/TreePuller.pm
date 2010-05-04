@@ -1,6 +1,6 @@
 package XML::TreePuller;
 
-our $VERSION = '0.1.2_01';
+our $VERSION = '0.1.2';
 
 use strict;
 use warnings;
@@ -520,6 +520,22 @@ Gentle introduction to parsing using Atom as an example.
 =item XML::TreePuller::CookBook::Performance
 
 High performance processing of Wikipedia dump files.
+
+=item XML::TreePuller::CookBook::Patterns
+
+=item XPath Tutorial
+
+=over 4
+
+=item 
+
+http://www.zvon.org/xxl/XPathTutorial/Output/example1.html
+
+=item 
+
+http://www.w3schools.com/xpath/
+
+=back
 
 =item MediaWiki::DumpFile::Pages
 

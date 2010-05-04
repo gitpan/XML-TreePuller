@@ -8,6 +8,7 @@ lib/XML/TreePuller/Element.pm
 lib/XML/TreePuller/Constants.pm
 lib/XML/TreePuller/CookBook/Intro.pm
 lib/XML/TreePuller/CookBook/Performance.pm
+lib/XML/TreePuller/CookBook/Patterns.pm 
 t/00-load.t
 t/05-methods.t
 t/10-simple.t
