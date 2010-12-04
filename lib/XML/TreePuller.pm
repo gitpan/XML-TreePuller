@@ -1,6 +1,6 @@
 package XML::TreePuller;
 
-our $VERSION = '0.1.2';
+our $VERSION = '0.1.3_01';
 
 use strict;
 use warnings;
@@ -11,13 +11,18 @@ use XML::LibXML::Reader;
 
 use XML::TreePuller::Element;
 use XML::TreePuller::Constants;
+use XML::CompactTree;
 
 our $NO_XS;
 
 BEGIN {
-	if (! defined(eval { require XML::CompactTree::XS; })) {
+	
+	if ($ENV{XML_TREEPULLER_NO_XS}) {
+		$NO_XS = $ENV{XML_TREEPULLER_NO_XS};
+	}
+	
+	if (! $NO_XS && ! defined(eval { require XML::CompactTree::XS; })) {
 		$NO_XS = 1;
-		require XML::CompactTree;
 	}
 
 }
